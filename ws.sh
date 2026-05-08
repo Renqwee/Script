@@ -1,16 +1,26 @@
 #!/bin/bash
 
+# Marker for the apps array
 AM="#ARRAY_MARKER#"
+# Marker for the open queue array
+OA="#OPEN APP ARRAY#"
 
-apps=("brave-bin" "firefox" "code" "nvim" "obsidian" "discord" "telegram-desktop" "vlc" "spotify") #ARRAY_MARKER#
+#Apps list
+apps=("brave" "firefox" "code" "nvim" "obsidian" "discord" "telegram-desktop" "vlc" "spotify") #ARRAY_MARKER#
 
+#Queue list
+open_app_list=( ) #OPEN APP ARRAY#
+
+# Display usage information
 usage() {
     echo "Usage: $0 [-a] [-d]"
     echo "  -a    Add new app"
     echo "  -d    Delete app"
+    echo "  -o    Open app"
     exit 1
 }
 
+# List all available apps
 Apps() {
     echo "Available apps:"
     for app in "${apps[@]}"; do
@@ -19,7 +29,8 @@ Apps() {
     echo "--------------"
 }
 
-Addapps() {
+# Add a new app to the apps list
+Addapp() {
     local class=$1
     
     #Add to list
@@ -28,7 +39,8 @@ Addapps() {
     echo "App '$class' added successfully!"
 }
 
-Deleteapps() {
+# Remove an app from the apps list
+Deleteapp() {
     local class=$1
 
     #Delete from a list 
@@ -40,15 +52,53 @@ Deleteapps() {
     echo "App '$class' deleted successfully!"
 }
 
-while getopts "ad" opt; do
+Open_app() {
+    local openapp=$1
+    local out=$2
+    #Add app to queue list
+    sed -i "/$OA/s/)/ \"$openapp\")/" "$0"
+
+    if [ "$out" == "1" ]
+    then
+        echo "Launching all selected apps..."
+        
+        #Grep app from queue list
+        list=$(grep ".*(.*$OA" "$0" | sed 's/.*(//;s/).*//' | tr -d '"')
+
+        #Open app
+        for op in $list; do
+            if [ -n "$op" ]; then
+                echo "Starting $op..."
+                $op &> /dev/null &
+            fi
+        done
+        
+        #Remove queue list
+        sed -i "/$OA/s/([^)]*)/( )/" "$0"
+    fi
+        
+}
+
+while getopts "ado" opt; do
     case $opt in 
         a)
-            read -p "Enter app class (Terminal Command): " class_app
-            Addapps "$class_app"
+            read -p "Enter app name (terminal command): " class_app
+            Addapp "$class_app"
             ;;
         d)
-            read -p "Enter app class to delete: " d_class
-            Deleteapps "$d_class"
+            read -p "Enter app name to delete: " d_class
+            Deleteapp "$d_class"
+            ;;
+        o)
+            out=0
+            Apps
+            while [ "$out" != "1" ]; do
+
+                read -p "Enter app to open: " op_app
+                read -p "Done? (1 to finish, any key to continue): " out
+                Open_app "$op_app" "$out"
+
+            done
             ;;
         *) 
             usage
